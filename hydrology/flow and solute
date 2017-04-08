@@ -1,0 +1,73 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Feb 15 12:22:31 2017
+
+- Used to combine high frequency data together.
+- Identify each inlet and outlet of nitrate and combine responsing station.
+
+@author: wliu14
+"""
+import pandas as pd
+import os
+
+def get_csv_files(relevant_path):
+    # find all the csv file in a directory
+    included_extensions = ['csv']
+    file_names = [fn for fn in os.listdir(relevant_path) if any(fn.endswith(ext) for ext in included_extensions)]
+    
+    return file_names
+
+def extract_water_quality_data(filename):
+    # extract nitrate data from each bioreactor and seperate them into 
+    # inlet and outlet. 
+    waterQuality_inlet = pd.DataFrame()
+    waterQuality_outlet = pd.DataFrame()
+    bioreactorName = filename[:3]
+    Bioractor = pd.read_csv(filename, skiprows = 0, header = 1,delimiter = ',')                    
+    Bioractor['Timestamp'] = Bioractor['Date/Time'].str[:-3]
+
+    Bioractor['Timestamp'] = pd.to_datetime(Bioractor['Timestamp'])
+    Bioractor = Bioractor.set_index('Timestamp')
+    inletName = str(bioreactorName)+ ' Inlet'+' Nitrate'
+    outletName = str(bioreactorName)+' Outlet'+' Nitrate'
+    waterQuality_inlet[inletName] = Bioractor[Bioractor['Location']
+    == 'Inlet']['NO3-Neq [mg/l]35.00-0.00_1']
+    waterQuality_outlet[outletName] = Bioractor[Bioractor['Location'] 
+    == 'Outlet']['NO3-Neq [mg/l]35.00-0.00_1']
+    
+    return waterQuality_inlet[inletName], waterQuality_outlet[outletName]
+    
+def extract_flow_data(filename):
+    flowdata = pd.read_csv(filename)
+    flowdata['TIMESTAMP'] = pd.to_datetime(flowdata['TIMESTAMP'])
+    flowdata = flowdata.set_index('TIMESTAMP')
+    
+    return flowdata
+    
+if __name__ == '__main__':
+    waterqualityPath = 'C:\\Users\\wliu14.WOLFTECH\\OneDrive\\Pasture\\High frequency sampling\\Processed data\\Water quality'
+    flowdataPath = 'C:\\Users\\wliu14.WOLFTECH\\OneDrive\\Pasture\\High frequency sampling\\Processed data\\Flowdata'
+    
+    BioreactorName = ['BC1','BC2','BF2']  
+    num = 0 
+    waterQuaFiles = get_csv_files(waterqualityPath)
+    flowDataFiles = get_csv_files(flowdataPath)
+    waterQuaData = dict()
+    flow_data = pd.DataFrame()
+    
+    for files in waterQuaFiles:
+        BioName = BioreactorName[num]
+        inlet = BioName + ' ' + 'Inlet'
+        outlet = BioName + ' ' +'Outlet'
+        waterQuaData[inlet], waterQuaData[outlet] = extract_water_quality_data(files)        
+        num = num + 1
+    
+    flow_data = extract_flow_data(flowDataFiles[0])
+                                                
+    dataAnalysis = {}
+    for items in waterQuaData:
+        dataAnalysis[items] = pd.concat([waterQuaData[items],flow_data[items]],axis = 1)    
+    
+    #save data into excels.
+    for items in dataAnalysis:
+        dataAnalysis[items].to_csv(str(items)+'.csv')
