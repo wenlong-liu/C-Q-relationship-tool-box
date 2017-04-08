@@ -1,0 +1,139 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Mar  1 17:48:50 2017
+
+@author: wliu14
+"""
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+
+def HystersisPlot(eventData):
+    '''
+    Plot the hysteresis loop.
+    '''    
+    time = range(1,len(eventData))     
+    # plot the picture. 
+    colors = cm.jet(time)
+    m = cm.ScalarMappable(cmap = cm.jet)
+    m.set_array(time)
+
+    ax = eventData.plot(kind = 'scatter', x = 'Flow', y ='Solute',
+              c = colors)
+    ax.set_xlim(eventData['Flow'].min(),eventData['Flow'].max()*1.1 ) 
+    # multily 1.1 to look pretty.
+    cbar = plt.colorbar(m, ticks = [time[5],time[-5]])
+    cbar.ax.set_yticklabels(['Event begin','Event end'])# change colar bar label
+    plt.xlabel('Drainage flow (cm^3/s)')
+    plt.ylabel('Solute (mg/L)')
+    plt.title('Flow vs Solute Concentration')
+    plt.show()
+    
+    
+def risingAndFallingLimb(data):
+    '''
+    Finding the rising and falling limbs for a loop.
+    If there is not data between points, interplate the data linearly. 
+    
+    inputfile format (A dataframe):
+    ****************************
+    Date       Solute    Flow   
+    ****************************
+    000        000       000
+    000        000       000
+    000        000       000
+    000        000       000
+    ****************************
+    
+    '''
+    # time that Q max arrives.   
+    indexMax = data.Flow.idxmax() 
+    risingLimb = data.iloc[0:indexMax]
+    fallingLimb = data[indexMax:]
+    
+    return risingLimb, fallingLimb
+    
+def dataNorma(data):
+    '''
+    Data normolization.  
+    Sample data format, Pandas Dataframe.
+    
+    ****************************
+    Date       Solute    Flow   
+    ****************************
+    000        000       000
+    000        000       000
+    000        000       000
+    000        000       000
+    ****************************
+    
+    '''
+    Qmin = data.Flow.min()
+    Qmax = data.Flow.max()
+    Cmin = data.Solute.min()
+    Cmax = data.Solute.max()
+    data_norm = pd.DataFrame()
+    data_norm['Flow'] = (data.Flow - Qmin)/(Qmax - Qmin)
+    data_norm['Solute'] = (data.Solute - Cmin)/(Cmax - Cmin) 
+    
+    #Flow Data round to 2 digits.
+    data_norm['Flow'] = data_norm.Flow.round(2)
+    
+    return data_norm 
+
+       
+def HIndexCalculation(data, indexType):    
+    '''
+    Calculate hysteresis index for loops.  
+    indexType = 0, means old index number developed by Lawler 2006;
+    indexType = 1, means new index proposed by Lloyd 2016.
+    '''
+    
+    data = dataNorma(data)
+    rising, falling =  risingAndFallingLimb(data)
+    # reindex with flow, average if more than 1 data.
+    rising = rising.groupby('Flow').mean()
+    falling = falling.groupby('Flow').mean()
+    #rename data
+    rising = rising.rename(columns = {'Solute':'Rising Solute'})
+    falling = falling.rename(columns = {'Solute':'Falling Solute'})
+    # Create an empty dataframe to connect data
+    cq = pd.DataFrame(index = [x/100 for x in range(0,100)])
+    # Connect dataframes to have rising and falling limbs.
+    # fillin NA with linear interprolation  
+    cq = pd.concat([cq,rising,falling], axis= 1).interpolate()              
+    
+    if indexType:
+        'new HI by Lloyd 2016.'
+        increment = 5
+        c_cal = [x  for x in range(0, 100, increment)]
+        # Find data using the increment
+        cq_cal = cq.iloc[c_cal]
+        # From Llyod's method
+        HI_cal = cq_cal['Rising Solute'] - cq_cal['Falling Solute']
+        HI = HI_cal.mean()
+
+    else:
+        'HI by Lawler, 2006'
+        c_cal = 50
+        cq_cal = cq.iloc[c_cal]
+        Crl, Cfl = cq_cal['Rising Solute'], cq_cal['Falling Solute']
+        
+        if Crl > Cfl:
+            HI = (Crl / Cfl) - 1
+        else:
+            HI = (Crl / Cfl)*(-1) + 1
+        
+    return HI   
+
+if __name__ == "__main__":
+    
+    inputfile = 'C:\\Users\\Wenlong\\OneDrive.old\\Pasture\\Field data\\Pasture-20170407\\Raw data\\drainage\\flowandwq.csv'
+    eventData = pd.read_csv(inputfile)
+    eventData = eventData.interpolate()
+    eventData_norm = dataNorma(eventData)
+    rising, falling = risingAndFallingLimb(eventData)
+    HystersisPlot(eventData)
+    HystersisPlot(eventData_norm)
+    HI_new = HIndexCalculation(eventData,indexType = 1)
+    HI_L = HIndexCalculation(eventData, indexType = 0)
