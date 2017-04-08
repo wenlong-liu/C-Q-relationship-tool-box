@@ -1,0 +1,46 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Feb 10 10:44:05 2017
+
+@author: wliu14
+
+V1.1: Feature added:
+    1. The script can extract data from dat files in different registory, therefore,
+    we do not need to move the script all around.  
+    2. The results will be automatically saved in the same registory with the 
+    raw data.
+    3. A temporary dictionary is used to solve the bug, which will strip the additional
+    data in other stations rather than BC1.  
+    
+"""
+
+import os
+import pandas as pd
+
+def dat_file_list(relevant_path):
+    # find all the dat file in a directory
+    included_extensions = ['dat']
+    file_names = [fn for fn in os.listdir(relevant_path) if any(fn.endswith(ext) for ext in included_extensions)]
+    
+    return file_names
+
+def flow_data(filename):
+    # retrieve flow data from dat file
+    data = pd.read_table(filename, sep = ',',skiprows = [0,2,3],
+                         index_col = 'TIMESTAMP') # skip rows, like units.                    
+    flowdata = data['qc_Avg']
+    
+    return flowdata
+
+if __name__ == '__main__':
+    #path = 'C:\\Users\\wliu14.WOLFTECH\\OneDrive\\Pasture\\Field data\\Pasture-20170324\\Raw data\\Drainage'
+    path = 'C:\\Users\\Wenlong\\OneDrive.old\\Pasture\\Field data\\Pasture-20170407\\Raw data\\drainage'    
+    filenameList = dat_file_list(path)
+    flowdata = {} # A dictionary to temporally store data.
+    
+    for filename in filenameList:
+        columnName = filename.split('_', 1)[0] # find column name from file.
+        flowdata[columnName] = flow_data(str(path + '\\' + filename))
+        
+    flow_data_df = pd.DataFrame(flowdata)
+    flow_data_df.to_csv(str(path + '\\' +'flowdata.csv'))      
