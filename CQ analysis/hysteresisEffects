@@ -2,31 +2,37 @@
 """
 Created on Wed Mar  1 17:48:50 2017
 
+V0.2 update:
+    * add a filename parameter in plot to show tile everytime. 
+    * add HI index in the graph.
+    
 @author: wliu14
 """
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
-def HystersisPlot(eventData):
+def HystersisPlot(eventData, graphTitle, HI):
     '''
     Plot the hysteresis loop.
     '''    
     time = range(1,len(eventData))     
     # plot the picture. 
     colors = cm.jet(time)
-    m = cm.ScalarMappable(cmap = cm.jet)
+    m = cm.ScalarMappable(cmap = cm.jet, )
     m.set_array(time)
 
     ax = eventData.plot(kind = 'scatter', x = 'Flow', y ='Solute',
               c = colors)
     ax.set_xlim(eventData['Flow'].min(),eventData['Flow'].max()*1.1 ) 
     # multily 1.1 to look pretty.
-    cbar = plt.colorbar(m, ticks = [time[5],time[-5]])
+    cbar = plt.colorbar(m, ticks = [time[2],time[-2]])
     cbar.ax.set_yticklabels(['Event begin','Event end'])# change colar bar label
-    plt.xlabel('Drainage flow (cm^3/s)')
-    plt.ylabel('Solute (mg/L)')
-    plt.title('Flow vs Solute Concentration')
+    plt.xlabel('Drainage flow')
+    plt.ylabel('Solute')
+    plt.title('Flow vs Solute Concentration'+ ' - ' + graphTitle)
+    # Insert a HI number in the most top left of the figure.
+    ax.text(eventData['Flow'].max()*0.1, eventData['Solute'].max(), 'HI: %.2f' %HI)
     plt.show()
     
     
